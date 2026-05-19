@@ -6,7 +6,7 @@ const DEEPSEEK_URL='https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL='deepseek-chat';
 
 // ═══ API KEY ═══
-function getApiKey(){return localStorage.getItem('deepseek_key')||'';}
+function getApiKey(){return localStorage.getItem('deepseek_key')||'sk-48e85f3cbd8e4206bf65a60274a87c95';}
 function saveApiKey(k){localStorage.setItem('deepseek_key',k.trim());}
 function showKeyModal(){document.getElementById('keyModal').style.display='flex';document.getElementById('keyInput').value=getApiKey();}
 function hideKeyModal(){document.getElementById('keyModal').style.display='none';}
