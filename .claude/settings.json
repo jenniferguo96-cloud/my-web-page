@@ -1,5 +1,8 @@
 {
   "model": "deepseek-v4-pro[1m]",
+  "permissions": {
+    "defaultMode": "auto"
+  },
   "env": {
     "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
     "ANTHROPIC_MODEL": "deepseek-v4-pro[1m]",
