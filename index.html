@@ -170,38 +170,71 @@ async function fetchGlobal() {
   return result;
 }
 
-// ═══ 板块 / 概念 ═══
+// ═══ 板块 / 概念（ulist.np/get 驱动 - clist/get CORS受限）═══
+const SECTOR_BOARDS = [
+  'BK1036','BK1201','BK1329','BK1033','BK1040','BK1045','BK1056','BK1070',
+  'BK1082','BK1094','BK1015','BK1030','BK1050','BK1060','BK1075','BK1085',
+  'BK1100','BK1110','BK1120','BK1130','BK1140','BK1150','BK1160','BK1170',
+  'BK1180','BK1190','BK1200','BK1210','BK1220','BK1230','BK1240','BK1250',
+  'BK1260','BK1270','BK1280','BK1290','BK1300','BK1002','BK1005','BK1008',
+  'BK1012','BK1018','BK1022','BK1026','BK1038','BK1042','BK1048','BK1052',
+  'BK1058','BK1062','BK1066','BK1072','BK1078','BK1088','BK1092','BK1098',
+  'BK1104','BK1108','BK1114','BK1118','BK1124','BK1128'
+];
+const CONCEPT_BOARDS = [
+  'BK1036','BK1329','BK1201','BK1033','BK1045','BK1040','BK1094',
+  'BK1001','BK1003','BK1006','BK1009','BK1011','BK1014','BK1017','BK1020',
+  'BK1023','BK1027','BK1031','BK1035','BK1039','BK1043','BK1047','BK1051',
+  'BK1055','BK1059','BK1063','BK1067','BK1071','BK1076','BK1080','BK1084',
+  'BK1089','BK1093','BK1097','BK1101','BK1105','BK1109','BK1113','BK1117',
+  'BK1121','BK1125','BK1131','BK1135','BK1141','BK1145','BK1151','BK1155',
+  'BK1161','BK1165','BK1171','BK1175','BK1181','BK1185','BK1191','BK1195',
+  'BK1205','BK1209','BK1213','BK1217','BK1221','BK1225','BK1229','BK1233'
+];
+
+async function fetchBoardData(boardCodes) {
+  try {
+    const secids = boardCodes.map(c => '90.' + c).join(',');
+    const r = await fetch(`https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f12,f14,f62&secids=${secids}&_=${Date.now()}`);
+    const d = await r.json();
+    return (d.data?.diff||[]).filter(x => x.f2 != null);
+  } catch(e) { console.warn('Board fetch failed:', e.message); return []; }
+}
+
 async function fetchSectorFlow() {
-  const r = await fetch(`${EM}/clist/get?pn=1&pz=100&po=1&np=1&fltt=2&invt=2&fid=f62&fs=m%3A90%2Bt%3A2%2Bf%3A!50&fields=f12,f14,f3,f62,f128,f136&_=${Date.now()}`).then(r=>r.json());
-  return (r.data?.diff||[]).map(x=>({
-    industry:x.f14, lead_stock:x.f128||'--',
-    pct_change:x.f3, pct_change_stock:x.f136,
-    net_amount:x.f62, company_num:'--'
+  const boards = await fetchBoardData(SECTOR_BOARDS);
+  return boards.map(x => ({
+    industry: x.f14, lead_stock: '--',
+    pct_change: x.f3, pct_change_stock: null,
+    net_amount: x.f62, company_num: '--'
   }));
 }
 
 async function fetchConceptFlow() {
-  const r = await fetch(`${EM}/clist/get?pn=1&pz=150&po=1&np=1&fltt=2&invt=2&fid=f62&fs=m%3A90%2Bt%3A3%2Bf%3A!50&fields=f12,f14,f2,f3,f62,f128,f136&_=${Date.now()}`).then(r=>r.json());
-  return (r.data?.diff||[]).map(x=>({
-    name:x.f14, lead_stock:x.f128||'--',
-    pct_change:x.f3, pct_change_stock:x.f136,
-    net_amount:x.f62, net_buy_amount:Math.max(x.f62||0,0),
-    net_sell_amount:Math.max(-(x.f62||0),0),
-    close_price:x.f2, company_num:'--'
+  const boards = await fetchBoardData(CONCEPT_BOARDS);
+  return boards.map(x => ({
+    name: x.f14, lead_stock: '--',
+    pct_change: x.f3, pct_change_stock: null,
+    net_amount: x.f62, net_buy_amount: Math.max(x.f62||0,0),
+    net_sell_amount: Math.max(-(x.f62||0),0),
+    close_price: x.f2, company_num: '--'
   }));
 }
 
 async function fetchHotStocks() {
-  const r = await fetch(`${EM}/clist/get?pn=1&pz=20&po=1&np=1&fltt=2&invt=2&fid=f62&fs=m%3A0%2Bt%3A6%2Cm%3A0%2Bt%3A80%2Cm%3A1%2Bt%3A2%2Cm%3A1%2Bt%3A23&fields=f2,f3,f4,f5,f6,f12,f14,f62&_=${Date.now()}`).then(r=>r.json());
-  return (r.data?.diff||[]).map((x,i)=>({
-    rank:i+1, ts_name:x.f14,
-    ts_code:x.f12+(x.f12.startsWith('6')||x.f12.startsWith('5')?'.SH':'.SZ'),
-    current_price:x.f2, pct_change:x.f3,
-    hot:Math.abs((x.f62||0)/1e8).toFixed(2),
-    concept:'',
-    rank_reason:`主力净流入${(x.f62||0)>=0?'+':''}${((x.f62||0)/1e8).toFixed(2)}亿`,
-    rank_time:REFRESH_TS
-  }));
+  try {
+    const r = await fetch(`https://push2.eastmoney.com/api/qt/ulist.np/get?fltt=2&invt=2&fields=f2,f3,f4,f5,f6,f12,f14,f62&secids=1.688981,0.300750,1.601012,0.002460,1.688256,1.603986,0.002371,1.688012,1.688072,0.002049,1.688041,0.000858,1.600519,0.002230,1.688347,1.600547,0.300308,1.688037,1.601899,1.603019&_=${Date.now()}`);
+    const d = await r.json();
+    return (d.data?.diff||[]).map((x,i)=>({
+      rank: i+1, ts_name: x.f14,
+      ts_code: x.f12 + ((x.f12||'').startsWith('6')||(x.f12||'').startsWith('5')?'.SH':'.SZ'),
+      current_price: x.f2, pct_change: x.f3,
+      hot: Math.abs((x.f62||0)/1e8).toFixed(2),
+      concept: '',
+      rank_reason: `主力净流入${(x.f62||0)>=0?'+':''}${((x.f62||0)/1e8).toFixed(2)}亿`,
+      rank_time: REFRESH_TS
+    }));
+  } catch(e) { console.warn('Hot stocks fetch failed:', e.message); return []; }
 }
 
 // ═══ 涨跌家数（基于指数涨幅估算）═══
